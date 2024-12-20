@@ -29,7 +29,7 @@ else:
     try:
         from configparser import ConfigParser
         parser = ConfigParser()
-        parser.read('../robot.conf')
+        parser.read('./robot.conf')
         ip = parser.get('xArm', 'ip')
     except:
         ip = input('Please input the xArm ip address:')
@@ -46,24 +46,24 @@ arm.set_state(state=0)
 
 arm.move_gohome(wait=True)
 
-arm.set_position(*[200, 0, 200, 180, 0, 0], wait=True)
+arm.set_position(*[200, 0, 200, 180, 0, 0], wait=True,speed=3)
 
 arm.set_mode(1)
 arm.set_state(0)
-time.sleep(0.1)
+time.sleep(4)
 
 while arm.connected and arm.state != 4:
-    for i in range(300):
+    for i in range(4):
         x = 200 + i
         mvpose = [x, 0, 200, 180, 0, 0]
-        ret = arm.set_servo_cartesian(mvpose, speed=100, mvacc=2000)
+        ret = arm.set_servo_cartesian(mvpose, speed=3,mvacc=0.05)
         print('set_servo_cartesian, ret={}'.format(ret))
-        time.sleep(0.01)
-    for i in range(300):
-        x = 500 - i
-        mvpose = [x, 0, 200, 180, 0, 0]
-        ret = arm.set_servo_cartesian(mvpose, speed=100, mvacc=2000)
-        print('set_servo_cartesian, ret={}'.format(ret))
-        time.sleep(0.01)
+        time.sleep(0.1)
+    # for i in range(300):
+    #     x = 500 - i
+    #     mvpose = [x, 0, 200, 180, 0, 0]
+    #     ret = arm.set_servo_cartesian(mvpose, speed=1, mvacc=2)
+    #     print('set_servo_cartesian, ret={}'.format(ret))
+    #     time.sleep(0.01)
 
 arm.disconnect()

@@ -44,9 +44,9 @@ print('set gripper enable, code={}'.format(code))
 code = arm.set_gripper_speed(5000)
 print('set gripper speed, code={}'.format(code))
 
-code = arm.set_gripper_position(600, wait=True)
-print('[wait]set gripper pos, code={}'.format(code))
+# code = arm.set_gripper_position(600, wait=True) #张开
+# print('[wait]set gripper pos, code={}'.format(code))
 
-code = arm.set_gripper_position(300, wait=True, speed=8000)
+code = arm.set_gripper_position(300, wait=True, speed=8000)#合拢
 print('[no wait]set gripper pos, code={}'.format(code))
 

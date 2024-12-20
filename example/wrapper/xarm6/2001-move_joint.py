@@ -47,7 +47,7 @@ arm.set_state(state=0)
 
 arm.move_gohome(wait=True)
 
-speed = 50
+speed = 5
 arm.set_servo_angle(angle=[90, 0, 0, 0, 0, 0], speed=speed, wait=True)
 print(arm.get_servo_angle(), arm.get_servo_angle(is_radian=True))
 arm.set_servo_angle(angle=[90, 0, -60, 0, 0, 0], speed=speed, wait=True)

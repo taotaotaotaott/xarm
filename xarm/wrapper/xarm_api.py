@@ -801,9 +801,9 @@ class XArmAPI(object):
         :param wait: whether to wait for the arm to complete, default is False
         :param timeout: maximum waiting time(unit: second), default is None(no timeout), only valid if wait is True
         :param kwargs: extra parameters
-            :param motion_type: motion planning type, default is 0
+            :#####param motion_type: motion planning type, default is 0
                 motion_type == 0: default, linear planning
-                motion_type == 1: prioritize linear planning, and turn to IK for joint planning when linear planning is not possible
+                motion_type == 1: prioritize linear planning, and turn to IK(Inverse Kinematics,逆运动学） for joint planning when linear planning is not possible
                 motion_type == 2: direct transfer to IK using joint planning
                 Note: 
                     1. only available if firmware_version >= 1.11.100
@@ -893,14 +893,15 @@ class XArmAPI(object):
                         relative=False, is_radian=None, wait=False, timeout=None, radius=None, **kwargs):
         """
         Set the servo angle, the API will modify self.last_used_angles value
-        Note:
+        Note: is_radian means angle value or radian system
+        ex:
             1. If the parameter angle you are passing is an radian unit, be sure to set the parameter is_radian to True.
-                ex: code = arm.set_servo_angle(servo_id=1, angle=1.57, is_radian=True)
+                ex(is_radian=True): code = arm.set_servo_angle(servo_id=1, angle=1.57, is_radian=True)
             2. If you want to wait for the robot to complete this action and then return, please set the parameter wait to True.
-                ex: code = arm.set_servo_angle(servo_id=1, angle=45, is_radian=False,wait=True)
+                ex(is_radian=False): code = arm.set_servo_angle(servo_id=1, angle=45, is_radian=False,wait=True)
             3. This interface is only used in the base coordinate system.
 
-        :param servo_id: 1-(Number of axes), None(8)
+        :param servo_id: 1-(Number of axes), None(8)   means which joint
             1. 1-(Number of axes) indicates the corresponding joint, the parameter angle should be a numeric value
                 ex: code = arm.set_servo_angle(servo_id=1, angle=45, is_radian=False)
             2. None(8) means all joints, default is None, the parameter angle should be a list of values whose length is the number of joints
@@ -918,7 +919,7 @@ class XArmAPI(object):
         :param is_radian: the angle in radians or not, default is self.default_is_radian
         :param wait: whether to wait for the arm to complete, default is False
         :param timeout: maximum waiting time(unit: second), default is None(no timeout), only valid if wait is True
-        :param radius: move radius, if radius is None or radius less than 0, will MoveJoint, else MoveArcJoint
+        :param radius: move radius, if radius is None or radius less than 0, will MoveJoint, else MoveArcJoint              #important!
             Note: Only available if version > 1.5.20
             Note: The blending radius cannot be greater than the track length.
             MoveJoint: joint motion
@@ -2493,16 +2494,16 @@ class XArmAPI(object):
         """
         Set the pose represented by the axis angle pose
         
-        :param axis_angle_pose: the axis angle pose, [x(mm), y(mm), z(mm), rx(rad or °), ry(rad or °), rz(rad or °)]
+        :***param axis_angle_pose: the axis angle pose, [x(mm), y(mm), z(mm), rx(rad or °), ry(rad or °), rz(rad or °)] 目标位置的x坐标，绕x轴旋转多少度
         :param speed: move speed (mm/s, rad/s), default is self.last_used_tcp_speed
         :param mvacc: move acceleration (mm/s^2, rad/s^2), default is self.last_used_tcp_acc
         :param mvtime: 0, reserved 
         :param is_radian: the rx/ry/rz of axis_angle_pose in radians or not, default is self.default_is_radian
-        :param is_tool_coord: is tool coordinate or not, if it is True, the relative parameter is no longer valid
+        :****param is_tool_coord: is tool coordinate or not, if it is True, the relative parameter is no longer valid  工具坐标系运动就是相对的
         :param relative: relative move or not
         :param wait: whether to wait for the arm to complete, default is False
         :param timeout: maximum waiting time(unit: second), default is None(no timeout), only valid if wait is True
-        :param radius: move radius, if radius is None or radius less than 0, will MoveLineAA, else MoveArcLineAA
+        :****param radius: move radius, if radius is None or radius less than 0, will MoveLineAA（线性运动）, else MoveArcLineAA（弧线运动）
             only available if firmware_version >= 1.11.100
             MoveLineAA: Linear motion
                 ex: code = arm.set_position_aa(..., radius=None)

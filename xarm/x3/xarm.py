@@ -77,7 +77,7 @@ class XArm(Gripper, Servo, Record, RobotIQ, BaseBoard, Track, FtSensor, ModbusTc
                 return True
         return False
     
-    def __wait_sync(self):
+    def __wait_sync(self): #等待机械臂同步
         while not self._is_sync or self._need_sync:
             if not self.connected:
                 return APIState.NOT_CONNECTED
@@ -134,7 +134,7 @@ class XArm(Gripper, Servo, Record, RobotIQ, BaseBoard, Track, FtSensor, ModbusTc
     def _set_position_absolute(self, x=None, y=None, z=None, roll=None, pitch=None, yaw=None, radius=None,
                                speed=None, mvacc=None, mvtime=None, is_radian=None, wait=False, timeout=None, **kwargs):
         is_radian = self._default_is_radian if is_radian is None else is_radian
-        only_check_type = kwargs.get('only_check_type', self._only_check_type)
+        only_check_type = kwargs.get('only_check_type', self._only_check_type) #默认值为0
         tcp_pos = [
             (math.inf if self.version_is_ge(2, 4, 101) else self._last_position[0]) if x is None else float(x),
             (math.inf if self.version_is_ge(2, 4, 101) else self._last_position[1]) if y is None else float(y),
@@ -155,6 +155,7 @@ class XArm(Gripper, Servo, Record, RobotIQ, BaseBoard, Track, FtSensor, ModbusTc
         spd, acc, mvt = self.__get_tcp_motion_params(speed, mvacc, mvtime, **kwargs)
         radius = radius if radius is not None else -1
         feedback_key, studio_wait = self._gen_feedback_key(wait, **kwargs)
+        #执行运动命令
         if self.version_is_ge(1, 11, 100) or kwargs.get('debug', False):
             ret = self.arm_cmd.move_line_common(tcp_pos, spd, acc, mvt, radius, coord=0, is_axis_angle=False, only_check_type=only_check_type, motion_type=motion_type, feedback_key=feedback_key)
         else:
@@ -165,9 +166,10 @@ class XArm(Gripper, Servo, Record, RobotIQ, BaseBoard, Track, FtSensor, ModbusTc
         trans_id = self._get_feedback_transid(feedback_key, studio_wait, kwargs.get('is_pop', True))
         ret[0] = self._check_code(ret[0], is_move_cmd=True)
         self.log_api_info('API -> set_position -> code={}, pos={}, radius={}, velo={}, acc={}'.format(
-            ret[0], tcp_pos, radius, spd, acc), code=ret[0])
+            ret[0], tcp_pos, radius, spd, acc), code=ret[0]) #日志记录
         self._is_set_move = True
         self._only_check_result = 0
+        #结果的判断与返回
         if only_check_type > 0 and ret[0] == 0:
             self._only_check_result = ret[3]
             return APIState.HAS_ERROR if ret[3] != 0 else ret[0]
@@ -316,9 +318,9 @@ class XArm(Gripper, Servo, Record, RobotIQ, BaseBoard, Track, FtSensor, ModbusTc
         mvcoord = kwargs.get('mvcoord', int(is_tool_coord))
         self._has_motion_cmd = True
         motion_type = kwargs.get('motion_type', False)
-        radius = radius if radius is not None else -1
+        radius = radius if radius is not None else -1 #是否线性运动
         feedback_key, studio_wait = self._gen_feedback_key(wait, **kwargs)
-        if self.version_is_ge(1, 11, 100) or kwargs.get('debug', False):
+        if self.version_is_ge(1, 11, 100) or kwargs.get('debug', False): #根据固件版本1.11.100选择移动命令 greater  固件版本2.5.1
             if not is_tool_coord and relative:
                 ret = self.arm_cmd.move_relative(tcp_pos, spd, acc, mvt, radius, False, True, only_check_type, motion_type=motion_type, feedback_key=feedback_key)
             else:
@@ -326,6 +328,7 @@ class XArm(Gripper, Servo, Record, RobotIQ, BaseBoard, Track, FtSensor, ModbusTc
         else:
             ret = self.arm_cmd.move_line_aa(tcp_pos, spd, acc, mvt, mvcoord, int(relative), only_check_type, motion_type=motion_type)
         trans_id = self._get_feedback_transid(feedback_key, studio_wait)
+        #检查代码
         ret[0] = self._check_code(ret[0], is_move_cmd=True)
         self.log_api_info('API -> set_position_aa -> code={}, pos={}, velo={}, acc={}'.format(
             ret[0], tcp_pos, spd, acc), code=ret[0])

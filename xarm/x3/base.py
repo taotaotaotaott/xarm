@@ -780,7 +780,7 @@ class Base(BaseObject, Events):
     def support_feedback(self):
         return self._support_feedback
 
-    def version_is_ge(self, major, minor=0, revision=0):
+    def version_is_ge(self, major, minor=0, revision=0): #greater
         if self._version is None:
             self._check_version()
         return self._major_version_number > major or (
