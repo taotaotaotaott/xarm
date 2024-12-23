@@ -16,6 +16,11 @@ import time
 from configparser import ConfigParser
 from xarm.wrapper import XArmAPI
 
+
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
+
+
 def initialize_arm():
     # 读取配置文件
     sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
@@ -40,6 +45,8 @@ def initialize_arm():
 def grasp_object(arm, x, y, z, width):
     arm.goto_grasp(x, y, z, width)
 
+
+
 def main():
     arm = initialize_arm()
 
@@ -48,6 +55,9 @@ def main():
     width = float(input("请输入物体的宽（单位mm）："))
 
     grasp_object(arm, x, y, z, width)
+    arm.move_gohome(speed=10)
+    
 
 if __name__ == "__main__":
     main()
+    

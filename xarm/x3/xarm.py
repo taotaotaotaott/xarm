@@ -233,10 +233,9 @@ class XArm(Gripper, Servo, Record, RobotIQ, BaseBoard, Track, FtSensor, ModbusTc
 
 ##########################
 
-    #算抓夹张开幅度和z坐标的关系
     def calculate_z_adjustment(self,pos):
         '''
-        Calculate the z adjustment based on the grip width.
+        Calculate the z adjustment based on the grip width.算抓夹张开幅度和z坐标的关系
 
         :param pos: 抓夹张开的程度，范围为 [-10, 850]
         :return: z_adjustment,根据抓夹张开程度计算得到的z坐标调整量。抓夹终端角度缩小,抓夹应该上升的值（单位：mm）
@@ -262,7 +261,8 @@ class XArm(Gripper, Servo, Record, RobotIQ, BaseBoard, Track, FtSensor, ModbusTc
 
         return z_value
 
-
+    
+        
 
     def adjust_z_by_grip(self, pos):
         z_adjustment = self.calculate_z_adjustment(pos)
@@ -270,37 +270,63 @@ class XArm(Gripper, Servo, Record, RobotIQ, BaseBoard, Track, FtSensor, ModbusTc
         return z_adjustment
     
 
+    def ts_tcp_gri(self,z):
+        '''
+        此时坐标是TCP中心相对于基座标中心的
+        这个函数将坐标从tcp中心转移到两抓夹终端连线的中点
+        经测量，抓夹完全张开时，移动机械臂，使得抓夹位于基座标的xy平面时（此时z值为零），TCP的z坐标为166.5mm
+        所以要想实现将坐标从tcp中心转移到两抓夹终端连线的中点的功能
+        需要将传入物品的z坐标+166.5
+        '''
+        
+        z+=166.5
+        z=float(z)
+        return z
+        
+    
 
-    '''
-    假设物品放置于水平平面
-    后续还要实现功能为检测物品放置位置是否超出限制,确定运动最大幅度、运动范围，并完善错误处理，提升鲁棒性；
-                    根据物体的宽相对于基座标系的x轴偏移了多少度 来决定yaw的度数
-    '''
     def goto_grasp(self, x=None, y=None, z=None, width=None, roll=None, pitch=None, yaw=None, radius=None,
                    speed=None, mvacc=None, mvtime=None, relative=False, is_radian=None, wait=False, timeout=None, **kwargs):
+        '''
+        假设物品放置于水平平面
+        后续还要实现功能为检测物品放置位置是否超出限制,确定运动最大幅度、运动范围，并完善错误处理，提升鲁棒性；
+        根据物体的宽相对于基座标系的x轴偏移了多少度 来决定yaw的度数
+        '''
         self.set_gripper_position(850,wait=True,speed=8000)
+        print("#################")
+        print(z)
+        z=self.ts_tcp_gri(z) 
+        print(z)
+
         if width is not None:
             # 设置抓夹的张开程度 pos  850 即85mm
             if width <= 85:
-                pos = width*10
+                pos = width*11
             else:
                 print("宽度超出抓夹限制，无法执行此任务")
-            self.set_gripper_position(pos=pos, wait=True, speed=8000)
             
+            # self.set_gripper_position(pos=pos, wait=True, speed=8000)
             # 调整 z 坐标，根据抓夹目前张开的程度
             z_adjustment = self.adjust_z_by_grip(pos)  #pos即 抓夹张开程度
             if z is not None:
-                z = z+154.3 + z_adjustment  # z-167将tcp变为抓夹合上的时候 抓夹终端的z值，
-                
-                print(f"经调整后tcp目前xyz的坐标是{x},{y},{z}")
+                z = z-z_adjustment  
+                z=float(z)
+                # print(f"经调整后tcp目前xyz的坐标是{x},{y},{z}")
+                print(f"经调整后目前的xyz坐标是{x},{y},{z}")
+
+              
             # 现在的xyz坐标表示的是抓夹两终端连线的中点的坐标，并且可以根据抓夹角度调整z坐标
 
             # 机械臂移动  ： 机械臂抓夹两终端连线的中点 移动到 物品的中点
+            # self.set_position(x, y, z, roll=180, pitch=0, yaw=0, radius=0, speed=12, wait=wait)
             self.set_position(x, y, z+20, roll=180, pitch=0, yaw=0, radius=0, speed=12, wait=wait)
-            self.set_position(0, 0, -20, roll=0, pitch=0, yaw=0, radius=0, speed=12,relative=True, wait=wait)
+            self.set_gripper_position(pos=pos, wait=True, speed=8000)  
+            self.set_position(0, 0, -30, roll=0, pitch=0, yaw=0, radius=0, speed=12,relative=True, wait=wait)
             #后续要加一个功能：根据物体的宽相对于基座标系的x轴偏移了多少度 来决定yaw的度数
             code = self.set_gripper_position(-10,wait=True,speed=8000)
             print('[no wait]set gripper pos,code={}'.format(code))
+
+            self.set_position(0, 20, 10, roll=0, pitch=0, yaw=0, radius=0, speed=12,relative=True, wait=wait)
 
         else:
             # 如果没有提供宽度，可以根据其他参数来调整行为
