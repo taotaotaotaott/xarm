@@ -58,7 +58,7 @@ def main():
     x, y, z = map(float, input("请输入物品顶部中心坐标x, y, z（用逗号分隔）：").split(","))
     width = float(input("请输入物体的宽（单位mm）："))
    
-    # 要不要放高度呢？
+    
 
     # 加一个检测路径是否合理
     # arm.test_path_valid(x,y,z,width)
