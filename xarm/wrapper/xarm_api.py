@@ -66,6 +66,7 @@ class XArmAPI(object):
                     6. property: last_used_joint_acc
                     7. property: tcp_offset
         :param do_not_open: do not open, default is False, if true, you need to manually call the connect interface.
+        
         :param kwargs: keyword parameters, generally do not need to set
             axis: number of axes, required only when using a serial port connection, default is 7
             baudrate: serial baudrate, invalid, reserved.
@@ -86,7 +87,7 @@ class XArmAPI(object):
                          is_radian=is_radian,
                          do_not_open=do_not_open,
                          instance=self,
-                         **kwargs)
+                         **kwargs) 
         self._studio = Studio(port, True)
 
         
@@ -105,8 +106,10 @@ class XArmAPI(object):
             'set_suction_cup': self.set_vacuum_gripper,
             'get_ft_senfor_config': self.get_ft_sensor_config,
             'shutdown_system': self.system_control,
-            'goto_grasp': self.goto_grasp  # 添加到字典中
-            
+            'goto_grasp': self.goto_grasp,  # 添加到字典中
+            'get_target_vectors': self.get_target_vectors, # 添加到字典中
+            'calculate_rotation': self.calculate_rotation,
+            'test_path_valid' : self.test_path_valid
             
         }
 
@@ -775,7 +778,73 @@ class XArmAPI(object):
 
 
 ###########################################################################  
-    def goto_grasp(self, x=None, y=None, z=None, width=None,pos=None,roll=None, pitch=None, yaw=None, radius=None,
+    def get_vectors(self, system_type='target', default_vectors=None):
+        '''
+        获取指定坐标系的单位向量。
+        
+        :param system_type: 'target' 或 'tool'，指明获取哪个坐标系的向量，默认为目标坐标系。
+        :param default_vectors: 如果用户选择不提供自定义值，则使用的默认向量列表。
+        :return: 一个包含三个单位向量的列表。
+        '''
+    
+    
+    def get_target_vectors(self):
+        '''
+        目标坐标系：以物体顶面的中心点为原点，物体和长平行的单位向量为x轴，和宽平行的是y轴，和高平行的是z轴
+        用户输入三条单位向量即可
+        '''
+        return self._arm.get_target_vectors()
+    def get_tool_vectors(self,tool_vectors=None):
+        '''
+        用户输入工具坐标系，默认值为[1, 0, 0], [0, -1, 0], [0, 0, -1]
+        '''
+
+        return self._arm.get_tool_vectors(tool_vectors)
+    
+    def calculate_rotation(self,tool_vectors, target_vectors):
+        print("########")
+        print("Tool vectors:", tool_vectors)
+        print("Target vectors:", target_vectors)
+        return self._arm.calculate_rotation(tool_vectors, target_vectors)
+
+
+
+    def test_path_valid(self,x=None, y=None, z=None,width=None, roll=None, pitch=None, yaw=None,):
+        # _set_only_check_type() 可以看看这个文件里的这个函数
+        print(f"到达的目标点及tcp姿态为:x={x},y={y},z={z},roll={roll},pitch={pitch},yaw={yaw}")
+        return self._arm.test_path_valid(x=x, y=y, z=z,width=width,roll=roll, pitch=pitch, yaw=yaw)
+
+    
+    
+    # def  后续把xyz的输入也挪进来吧  然后三个合体成一个输入函数
+# 可以更合体成初始化函数
+
+
+    def trans_tool_to_target():
+        '''
+        计算工具坐标系如何旋转可以与目标坐标系方向一致
+        '''
+        
+            
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+################### 
+    def goto_grasp(self, x=None, y=None, z=None, width=None,roll=None, pitch=None, yaw=None, radius=None,
                      speed=None, mvacc=None, mvtime=None, relative=False, is_radian=None,
                      wait=False, timeout=None, **kwargs):
         
@@ -807,11 +876,11 @@ class XArmAPI(object):
                                       speed=speed, mvacc=mvacc, mvtime=mvtime, relative=relative,
                                       is_radian=is_radian, wait=wait, timeout=timeout, **kwargs)
 
-    def _set_position_absolute(self, x=None, y=None, z=None, roll=None, pitch=None, yaw=None, radius=None,
-                               speed=None, mvacc=None, mvtime=None, is_radian=None, wait=False, timeout=None,_check_tcp_limit=None,check=None, **kwargs):
+    def _set_position_absolute(self, x=None, y=None, z=None, width=None,roll=None, pitch=None, yaw=None, radius=None,
+                               speed=None, mvacc=None, mvtime=None, is_radian=None, wait=False, timeout=None, **kwargs):
         print("hhhhhhhhhhhhhhhhhhhhh")
-        return self._arm._set_position_absolute(x=x, y=y, z=z, roll=roll, pitch=pitch, yaw=yaw, radius=radius,
-                               speed=speed, mvacc=mvacc, mvtime=mvtime, is_radian=is_radian, wait=wait, timeout=timeout, _check_tcp_limit=_check_tcp_limit,check=check,**kwargs)
+        return self._arm._set_position_absolute(x=x, y=y, z=z,width=width, roll=roll, pitch=pitch, yaw=yaw, radius=radius,
+                               speed=speed, mvacc=mvacc, mvtime=mvtime, is_radian=is_radian, wait=wait, timeout=timeout,**kwargs)
 #####################################
 
 
@@ -868,6 +937,7 @@ class XArmAPI(object):
         return self._arm.set_position(x=x, y=y, z=z, roll=roll, pitch=pitch, yaw=yaw, radius=radius,
                                       speed=speed, mvacc=mvacc, mvtime=mvtime, relative=relative,
                                       is_radian=is_radian, wait=wait, timeout=timeout, _check_tcp_limit=_check_tcp_limit,check=check,**kwargs)
+
 
     def set_tool_position(self, x=0, y=0, z=0, roll=0, pitch=0, yaw=0,
                           speed=None, mvacc=None, mvtime=None, is_radian=None,
