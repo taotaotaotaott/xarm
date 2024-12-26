@@ -109,7 +109,8 @@ class XArmAPI(object):
             'grasp_object': self.grasp_object,  
             'get_target_vectors': self.get_target_vectors, 
             'calculate_rotation': self.calculate_rotation,
-            'test_path_valid' : self.test_path_valid
+            'test_path_valid' : self.test_path_valid,
+            'get_object_info' : self.get_object_info
             
         }
 
@@ -844,9 +845,38 @@ class XArmAPI(object):
 
 
 ################### 
-    def grasp_object(self, x=None, y=None, z=None, width=None,height=None,roll=None, pitch=None, yaw=None, radius=None,
-                     speed=None, mvacc=None, mvtime=None, relative=False, is_radian=None,
-                     wait=False, timeout=None, **kwargs):
+    def get_object_info(object_name:str)->str|dict:
+    # 输入信息 
+        object_x_coordinate, object_y_coordinate, object_z_coordinate = map(float, input("请输入物品顶部中心坐标x, y, z（用逗号分隔）：").split(","))
+        object_width = float(input("请输入物体的宽（单位mm）："))
+        object_height = float(input("请输入物体的高（单位mm）:"))
+        grasp_axis_unit_vector_x,grasp_axis_unit_vector_y,grasp_axis_unit_vector_z = map(float,input("请输入抓取轴向量的三个分量:").split(","))
+
+        object_info_dict = {
+            "cup": {
+                "object_x_coordinate": object_x_coordinate,
+                "object_y_coordinate": object_y_coordinate,
+                "object_z_coordinate": object_z_coordinate,
+                "object_width": object_width,
+                "object_height": object_height,
+                "grasp_axis_unit_vector_x": grasp_axis_unit_vector_x,
+                "grasp_axis_unit_vector_y": grasp_axis_unit_vector_y,
+                "grasp_axis_unit_vector_z": grasp_axis_unit_vector_z,
+                }
+        }
+
+        if object_name not in object_info_dict:
+            return "Can't obtain the position, orientation, and size information of the object: {}, please check the object_name.".format(object_name)
+
+        obj_info = object_info_dict[object_name]
+
+        return obj_info
+
+
+
+
+    def grasp_object(self, x=None, y=None, z=None, width=None,height=None,roll=None, pitch=None, yaw=None,
+                    radius=None,speed=None,  relative=False, wait=False, timeout=None, **kwargs):
         
         """
         使机械臂移动到指定位置并调整抓夹位置。
@@ -872,9 +902,11 @@ class XArmAPI(object):
         :param kwargs: extra parameters
         :return: None
         """
-        return self._arm.grasp_object(x=object_x_coordinate, y=y, z=z, roll=roll,width=width, height=height,pitch=pitch, yaw=yaw, radius=radius,
-                                      speed=speed, mvacc=mvacc, mvtime=mvtime, relative=relative,
-                                      is_radian=is_radian, wait=wait, timeout=timeout, **kwargs)
+        return self._arm.grasp_object(object_x_coordinate=x, object_y_coordinate=y, object_z_coordinate=z, 
+                                      object_width=width, object_height=height,
+                                      roll=roll,pitch=pitch, yaw=yaw, radius=radius,speed=speed,relative=relative,wait=wait, timeout=timeout, **kwargs)
+
+
 
     def _set_position_absolute(self, x=None, y=None, z=None, width=None,roll=None, pitch=None, yaw=None, radius=None,
                                speed=None, mvacc=None, mvtime=None, is_radian=None, wait=False, timeout=None, **kwargs):

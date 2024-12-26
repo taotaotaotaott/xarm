@@ -22,7 +22,6 @@ from configparser import ConfigParser
 from xarm.wrapper import XArmAPI
 
 
-
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
 
 
@@ -48,21 +47,23 @@ def initialize_arm():
     return arm
 
 
-
-
-
 def main():
     arm = initialize_arm()
 
-    # 输入信息 
-    object_x_coordinate, object_y_coordinate, object_z_coordinate = map(float, input("请输入物品顶部中心坐标x, y, z（用逗号分隔）：").split(","))
-    object_width = float(input("请输入物体的宽（单位mm）："))
-    object_height = float(input("请输入物体的高（单位mm）:"))
-    grasp_axis_unit_vector_x,grasp_axis_unit_vector_y,grasp_axis_unit_vector_z = map(float,input("请输入抓取轴向量的三个分量:").split(","))
+    
+    obj_name = "cup"  
+    obj_info = arm.get_object_info(obj_name)  
+    object_x_coordinate= obj_info["object_x_coordinate"]
+    object_y_coordinate= obj_info["object_y_coordinate"]
+    object_z_coordinate= obj_info["object_z_coordinate"]
+    object_width= obj_info["object_width"]
+    object_height= obj_info["object_height"]
+    grasp_axis_unit_vector_x= obj_info["grasp_axis_unit_vector_x"]
+    grasp_axis_unit_vector_y= obj_info["grasp_axis_unit_vector_y"]
+    grasp_axis_unit_vector_z= obj_info["grasp_axis_unit_vector_z"]
 
 
-
-    arm.grasp_object( x=object_x_coordinate,y=object_y_coordinate, z=object_z_coordinate, width=object_width,height=object_height,
+    arm.grasp_object(x=object_x_coordinate,y=object_y_coordinate, z=object_z_coordinate, width=object_width,height=object_height,
                      grasp_axis_unit_vector_x=grasp_axis_unit_vector_x,grasp_axis_unit_vector_y=grasp_axis_unit_vector_y,grasp_axis_unit_vector_z=grasp_axis_unit_vector_z)
     # arm.move_gohome(speed=10)
     
