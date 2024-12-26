@@ -46,27 +46,6 @@ def initialize_arm():
 def grasp_object(arm, x, y, z, width):
     arm.goto_grasp(x, y, z, width)
 
-def calculate_angle_between_vectors(v1, v2, is_radian=False):
-    """计算两个向量之间的夹角。
-
-    :param v1: 第一个向量
-    :param v2: 第二个向量
-    :param is_radian: 返回值是以弧度为单位还是角度，默认为False，即返回角度值
-    :return: 两个向量之间的夹角，单位根据is_radian参数决定
-    """
-    dot_product = np.dot(v1, v2)
-    magnitude_v1 = np.linalg.norm(v1)
-    magnitude_v2 = np.linalg.norm(v2)
-    # 计算余弦值
-    cos_angle = dot_product / (magnitude_v1 * magnitude_v2)
-    # 计算夹角
-    angle = np.arccos(cos_angle)
-    
-    if not is_radian:
-        # 如果不需要弧度，转换为角度
-        angle = np.degrees(angle)
-    
-    return angle
 
 
 

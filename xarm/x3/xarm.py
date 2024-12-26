@@ -49,7 +49,9 @@ class XArm(Gripper, Servo, Record, RobotIQ, BaseBoard, Track, FtSensor, ModbusTc
         self._api_instance = instance
         Base.__init__(self, port, is_radian, do_not_open, **kwargs)
 
-    def _is_out_of_tcp_range(self, value, i):
+    def _is_out_of_tcp_range(self, value, i,_check_tcp_limit):
+        print(f"_check_tcp_limit：{_check_tcp_limit}")
+        print(f"self._check_tcp_limit：{self._check_tcp_limit}")
         if not self._check_tcp_limit or self._stream_type != 'socket' or not self._enable_report or value == math.inf:
             return False
         tcp_range = XCONF.Robot.TCP_LIMITS.get(self.axis).get(self.device_type, [])
@@ -133,9 +135,14 @@ class XArm(Gripper, Servo, Record, RobotIQ, BaseBoard, Track, FtSensor, ModbusTc
         return spd, acc, mvt
 
     def _set_position_absolute(self, x=None, y=None, z=None, roll=None, pitch=None, yaw=None, radius=None,
-                               speed=None, mvacc=None, mvtime=None, is_radian=None, wait=False, timeout=None, **kwargs):
+                               speed=None, mvacc=None, mvtime=None, is_radian=None, wait=False, timeout=None,  _check_tcp_limit=None,**kwargs):
         is_radian = self._default_is_radian if is_radian is None else is_radian
         only_check_type = kwargs.get('only_check_type', self._only_check_type)
+        check = True
+        self._check_tcp_limit=True
+        
+        print(f"_check_tcp_limit:{_check_tcp_limit}")
+        print(f"self._check_tcp_limit:{self._check_tcp_limit}")
         tcp_pos = [
             (math.inf if self.version_is_ge(2, 4, 101) else self._last_position[0]) if x is None else float(x),
             (math.inf if self.version_is_ge(2, 4, 101) else self._last_position[1]) if y is None else float(y),
@@ -145,13 +152,19 @@ class XArm(Gripper, Servo, Record, RobotIQ, BaseBoard, Track, FtSensor, ModbusTc
             (math.inf if self.version_is_ge(2, 4, 101) else self._last_position[5]) if yaw is None else to_radian(yaw, is_radian),
         ]
         motion_type = kwargs.get('motion_type', False)
+
+        #检查是否超出范围：需要增加对超出范围的提示处理
         for i in range(3):
-            if self._is_out_of_tcp_range(tcp_pos[i+3], i + 3):
+            print("检查是否超出范围 后三个参数")
+            if self._is_out_of_tcp_range(tcp_pos[i+3], i + 3,_check_tcp_limit):
+                # print(APIState.OUT_OF_RANGE)
                 return APIState.OUT_OF_RANGE
         if kwargs.get('check', False):
+            print("检查是否超出范围 六个参数")
             _, limit = self.is_tcp_limit(tcp_pos, True)
             if _ == 0 and limit is True:
                 return APIState.TCP_LIMIT
+        
         self._has_motion_cmd = True
         spd, acc, mvt = self.__get_tcp_motion_params(speed, mvacc, mvtime, **kwargs)
         radius = radius if radius is not None else -1
@@ -180,6 +193,7 @@ class XArm(Gripper, Servo, Record, RobotIQ, BaseBoard, Track, FtSensor, ModbusTc
         if only_check_type <= 0 and (ret[0] >= 0 or self.get_is_moving()):
             self.__update_tcp_motion_params(spd, acc, mvt, tcp_pos)
         return ret[0]
+
 
     def _set_position_relative(self, x=None, y=None, z=None, roll=None, pitch=None, yaw=None, radius=None,
                                speed=None, mvacc=None, mvtime=None, is_radian=None, wait=False, timeout=None, **kwargs):
@@ -233,10 +247,9 @@ class XArm(Gripper, Servo, Record, RobotIQ, BaseBoard, Track, FtSensor, ModbusTc
 
 ##########################
 
-    #算抓夹张开幅度和z坐标的关系
     def calculate_z_adjustment(self,pos):
         '''
-        Calculate the z adjustment based on the grip width.
+        Calculate the z adjustment based on the grip width.算抓夹张开幅度和z坐标的关系
 
         :param pos: 抓夹张开的程度，范围为 [-10, 850]
         :return: z_adjustment,根据抓夹张开程度计算得到的z坐标调整量。抓夹终端角度缩小,抓夹应该上升的值（单位：mm）
@@ -262,7 +275,8 @@ class XArm(Gripper, Servo, Record, RobotIQ, BaseBoard, Track, FtSensor, ModbusTc
 
         return z_value
 
-
+    
+        
 
     def adjust_z_by_grip(self, pos):
         z_adjustment = self.calculate_z_adjustment(pos)
@@ -270,37 +284,63 @@ class XArm(Gripper, Servo, Record, RobotIQ, BaseBoard, Track, FtSensor, ModbusTc
         return z_adjustment
     
 
+    def ts_tcp_gri(self,z):
+        '''
+        此时坐标是TCP中心相对于基座标中心的
+        这个函数将坐标从tcp中心转移到两抓夹终端连线的中点
+        经测量，抓夹完全张开时，移动机械臂，使得抓夹位于基座标的xy平面时（此时z值为零），TCP的z坐标为166.5mm
+        所以要想实现将坐标从tcp中心转移到两抓夹终端连线的中点的功能
+        需要将传入物品的z坐标+166.5
+        '''
+        
+        z+=166.5
+        z=float(z)
+        return z
+        
+    
 
-    '''
-    假设物品放置于水平平面
-    后续还要实现功能为检测物品放置位置是否超出限制,确定运动最大幅度、运动范围，并完善错误处理，提升鲁棒性；
-                    根据物体的宽相对于基座标系的x轴偏移了多少度 来决定yaw的度数
-    '''
     def goto_grasp(self, x=None, y=None, z=None, width=None, roll=None, pitch=None, yaw=None, radius=None,
                    speed=None, mvacc=None, mvtime=None, relative=False, is_radian=None, wait=False, timeout=None, **kwargs):
+        '''
+        假设物品放置于水平平面
+        后续还要实现功能为检测物品放置位置是否超出限制,确定运动最大幅度、运动范围，并完善错误处理，提升鲁棒性；
+        根据物体的宽相对于基座标系的x轴偏移了多少度 来决定yaw的度数
+        '''
         self.set_gripper_position(850,wait=True,speed=8000)
+        print("#################")
+        print(z)
+        z=self.ts_tcp_gri(z) 
+        print(z)
+
         if width is not None:
             # 设置抓夹的张开程度 pos  850 即85mm
             if width <= 85:
-                pos = width*10
+                pos = width*11
             else:
                 print("宽度超出抓夹限制，无法执行此任务")
-            self.set_gripper_position(pos=pos, wait=True, speed=8000)
             
+            # self.set_gripper_position(pos=pos, wait=True, speed=8000)
             # 调整 z 坐标，根据抓夹目前张开的程度
             z_adjustment = self.adjust_z_by_grip(pos)  #pos即 抓夹张开程度
             if z is not None:
-                z = z+154.3 + z_adjustment  # z-167将tcp变为抓夹合上的时候 抓夹终端的z值，
-                
-                print(f"经调整后tcp目前xyz的坐标是{x},{y},{z}")
+                z = z-z_adjustment  
+                z=float(z)
+                # print(f"经调整后tcp目前xyz的坐标是{x},{y},{z}")
+                print(f"经调整后目前的xyz坐标是{x},{y},{z}")
+
+              
             # 现在的xyz坐标表示的是抓夹两终端连线的中点的坐标，并且可以根据抓夹角度调整z坐标
 
             # 机械臂移动  ： 机械臂抓夹两终端连线的中点 移动到 物品的中点
+            # self.set_position(x, y, z, roll=180, pitch=0, yaw=0, radius=0, speed=12, wait=wait)
             self.set_position(x, y, z+20, roll=180, pitch=0, yaw=0, radius=0, speed=12, wait=wait)
-            self.set_position(0, 0, -20, roll=0, pitch=0, yaw=0, radius=0, speed=12,relative=True, wait=wait)
+            self.set_gripper_position(pos=pos, wait=True, speed=8000)  
+            self.set_position(0, 0, -30, roll=0, pitch=0, yaw=0, radius=0, speed=12,relative=True, wait=wait)
             #后续要加一个功能：根据物体的宽相对于基座标系的x轴偏移了多少度 来决定yaw的度数
             code = self.set_gripper_position(-10,wait=True,speed=8000)
             print('[no wait]set gripper pos,code={}'.format(code))
+
+            self.set_position(0, 20, 10, roll=0, pitch=0, yaw=0, radius=0, speed=12,relative=True, wait=wait)
 
         else:
             # 如果没有提供宽度，可以根据其他参数来调整行为
@@ -308,8 +348,6 @@ class XArm(Gripper, Servo, Record, RobotIQ, BaseBoard, Track, FtSensor, ModbusTc
    
         
 #################
-
-
 
     @xarm_wait_until_not_pause
     @xarm_wait_until_cmdnum_lt_max
@@ -1145,18 +1183,40 @@ class XArm(Gripper, Servo, Record, RobotIQ, BaseBoard, Track, FtSensor, ModbusTc
                 pose = [pose[i] if i < 3 else math.degrees(pose[i]) for i in range(len(pose))]
         return ret[0], pose
 
+# +++++++++++++++++++++++++++++++++++++++++++
+    def _handle_tcp_limit_response(self, ret):
+        # 记录日志
+        self.log_api_info('API -> is_tcp_limit -> code={}, limit={}'.format(ret[0], ret[1]), code=ret[0])
+        
+        # 检查状态码
+        ret[0] = self._check_code(ret[0])
+        
+        # 根据状态码返回结果
+        if ret[0] == 0:
+            print("ret[0] == 0,没有错误")
+            return ret[0], bool(ret[1])  # 没有错误，返回限制信息
+        else:
+            # 有错误，打印错误提示信息到控制台
+            print(f"Error: TCP limit check failed with error code {ret[0]}")
+            return ret[0], None  # 返回状态码和 None
+
+
+    #对六个参数进行检查
     @xarm_is_connected(_type='get')
     def is_tcp_limit(self, pose, is_radian=None):
         is_radian = self._default_is_radian if is_radian is None else is_radian
         assert len(pose) >= 6
-        tcp_pose = [to_radian(pose[i], is_radian or i <= 2, self._last_position[i]) for i in range(6)]
-        ret = self.arm_cmd.is_tcp_limit(tcp_pose)
+        tcp_pose = [to_radian(pose[i], is_radian or i <= 2, self._last_position[i]) for i in range(6)] #转换为弧度制
+        ret = self.arm_cmd.is_tcp_limit(tcp_pose)#判断给定的工具姿态（6个）是否在工具中心点的限制范围内
+        print(f"ret：{ret}")
+        # 记录日志
         self.log_api_info('API -> is_tcp_limit -> code={}, limit={}'.format(ret[0], ret[1]), code=ret[0])
-        ret[0] = self._check_code(ret[0])
-        if ret[0] == 0:
-            return ret[0], bool(ret[1])
-        else:
-            return ret[0], None
+        
+        return self._handle_tcp_limit_response(ret)  # 确保返回处理结果
+        
+        
+        
+# +++++++++++++++++++++++++++++++++++++++++++
 
     @xarm_is_connected(_type='get')
     def is_joint_limit(self, joint, is_radian=None):

@@ -88,6 +88,8 @@ class XArmAPI(object):
                          instance=self,
                          **kwargs)
         self._studio = Studio(port, True)
+
+        
         self.__attr_alias_map = {
             'get_ik': self.get_inverse_kinematics,
             'get_fk': self.get_forward_kinematics,
@@ -103,6 +105,9 @@ class XArmAPI(object):
             'set_suction_cup': self.set_vacuum_gripper,
             'get_ft_senfor_config': self.get_ft_sensor_config,
             'shutdown_system': self.system_control,
+            'goto_grasp': self.goto_grasp  # 添加到字典中
+            
+            
         }
 
     def __getattr__(self, item):
@@ -644,13 +649,6 @@ class XArmAPI(object):
         """
         return self._arm.cgpio_states
 
-        
-
-
-
-
-
-###############################################################
     @property
     def self_collision_params(self):
         """
@@ -773,10 +771,11 @@ class XArmAPI(object):
             code: See the [API Code Documentation](./xarm_api_code.md#api-code) for details.
         """
         return self._arm.get_position(is_radian=is_radian)
-    
-    
-    
-    def goto_grasp(self, x=None, y=None, z=None, width=None,roll=None, pitch=None, yaw=None, radius=None,
+
+
+
+###########################################################################  
+    def goto_grasp(self, x=None, y=None, z=None, width=None,pos=None,roll=None, pitch=None, yaw=None, radius=None,
                      speed=None, mvacc=None, mvtime=None, relative=False, is_radian=None,
                      wait=False, timeout=None, **kwargs):
         
@@ -808,11 +807,17 @@ class XArmAPI(object):
                                       speed=speed, mvacc=mvacc, mvtime=mvtime, relative=relative,
                                       is_radian=is_radian, wait=wait, timeout=timeout, **kwargs)
 
+    def _set_position_absolute(self, x=None, y=None, z=None, roll=None, pitch=None, yaw=None, radius=None,
+                               speed=None, mvacc=None, mvtime=None, is_radian=None, wait=False, timeout=None,_check_tcp_limit=None,check=None, **kwargs):
+        print("hhhhhhhhhhhhhhhhhhhhh")
+        return self._arm._set_position_absolute(x=x, y=y, z=z, roll=roll, pitch=pitch, yaw=yaw, radius=radius,
+                               speed=speed, mvacc=mvacc, mvtime=mvtime, is_radian=is_radian, wait=wait, timeout=timeout, _check_tcp_limit=_check_tcp_limit,check=check,**kwargs)
+#####################################
 
 
     def set_position(self, x=None, y=None, z=None, roll=None, pitch=None, yaw=None, radius=None,
                      speed=None, mvacc=None, mvtime=None, relative=False, is_radian=None,
-                     wait=False, timeout=None, **kwargs):
+                     wait=False, timeout=None, _check_tcp_limit=None,check=None, **kwargs):
         """
         Set the cartesian position, the API will modify self.last_used_position value
         Note:
@@ -862,7 +867,7 @@ class XArmAPI(object):
         """
         return self._arm.set_position(x=x, y=y, z=z, roll=roll, pitch=pitch, yaw=yaw, radius=radius,
                                       speed=speed, mvacc=mvacc, mvtime=mvtime, relative=relative,
-                                      is_radian=is_radian, wait=wait, timeout=timeout, **kwargs)
+                                      is_radian=is_radian, wait=wait, timeout=timeout, _check_tcp_limit=_check_tcp_limit,check=check,**kwargs)
 
     def set_tool_position(self, x=0, y=0, z=0, roll=0, pitch=0, yaw=0,
                           speed=None, mvacc=None, mvtime=None, is_radian=None,
