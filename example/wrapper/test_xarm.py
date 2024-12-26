@@ -5,7 +5,7 @@ from goto_and_grasp import grasp_object,initialize_arm
 
 class TestXArmAPI(unittest.TestCase):
 
-    @patch('goto_and_grasp.XArmAPI')  # 替换为实际模块名
+    @patch('goto_and_grasp.XArmAPI')  
     def test_initialize_arm(self, MockXArmAPI):
         mock_arm = MockXArmAPI.return_value 
         arm = initialize_arm()
