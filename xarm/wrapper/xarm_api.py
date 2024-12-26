@@ -106,8 +106,8 @@ class XArmAPI(object):
             'set_suction_cup': self.set_vacuum_gripper,
             'get_ft_senfor_config': self.get_ft_sensor_config,
             'shutdown_system': self.system_control,
-            'goto_grasp': self.goto_grasp,  # 添加到字典中
-            'get_target_vectors': self.get_target_vectors, # 添加到字典中
+            'grasp_object': self.grasp_object,  
+            'get_target_vectors': self.get_target_vectors, 
             'calculate_rotation': self.calculate_rotation,
             'test_path_valid' : self.test_path_valid
             
@@ -844,7 +844,7 @@ class XArmAPI(object):
 
 
 ################### 
-    def goto_grasp(self, x=None, y=None, z=None, width=None,roll=None, pitch=None, yaw=None, radius=None,
+    def grasp_object(self, x=None, y=None, z=None, width=None,height=None,roll=None, pitch=None, yaw=None, radius=None,
                      speed=None, mvacc=None, mvtime=None, relative=False, is_radian=None,
                      wait=False, timeout=None, **kwargs):
         
@@ -872,7 +872,7 @@ class XArmAPI(object):
         :param kwargs: extra parameters
         :return: None
         """
-        return self._arm.goto_grasp(x=x, y=y, z=z, roll=roll,width=width, pitch=pitch, yaw=yaw, radius=radius,
+        return self._arm.grasp_object(x=object_x_coordinate, y=y, z=z, roll=roll,width=width, height=height,pitch=pitch, yaw=yaw, radius=radius,
                                       speed=speed, mvacc=mvacc, mvtime=mvtime, relative=relative,
                                       is_radian=is_radian, wait=wait, timeout=timeout, **kwargs)
 

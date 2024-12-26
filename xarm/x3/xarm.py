@@ -450,7 +450,7 @@ class XArm(Gripper, Servo, Record, RobotIQ, BaseBoard, Track, FtSensor, ModbusTc
         
     
 
-    def goto_grasp(self, x=None, y=None, z=None, width=None, roll=None, pitch=None, yaw=None, radius=None,
+    def grasp_object(self, x=None, y=None, z=None, width=None, height=None,roll=None, pitch=None, yaw=None, radius=None,
                    speed=None, mvacc=None, mvtime=None, relative=False, is_radian=None, wait=False, timeout=None, **kwargs):
         '''
         假设物品放置于水平平面
@@ -462,7 +462,7 @@ class XArm(Gripper, Servo, Record, RobotIQ, BaseBoard, Track, FtSensor, ModbusTc
         print("pos=",pos)
         ###############调用转换坐标的函数#################
         
-        x,y,z,pos_a,width,z_adjustment = self.ts_tcp_gri(x,y,z,pos,width)
+        y,z,pos_a,width,z_adjustment,x = self.ts_tcp_gri(y,z,pos,width,x=object_x_coordinate)
         pos = pos_a
         print("pos====",pos)
 
