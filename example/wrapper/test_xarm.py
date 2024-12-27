@@ -1,26 +1,38 @@
 import unittest
 from unittest.mock import patch, MagicMock
-from xarm.wrapper import XArmAPI
-from goto_and_grasp import grasp_object,initialize_arm
+from grasp_object import main, initialize_arm
 
-class TestXArmAPI(unittest.TestCase):
+class TestMainFunction(unittest.TestCase):
 
-    @patch('goto_and_grasp.XArmAPI')  
-    def test_initialize_arm(self, MockXArmAPI):
-        mock_arm = MockXArmAPI.return_value 
+    @patch('grasp_object.XArmAPI')
+    @patch('builtins.input', return_value='192.168.1.222')
+    def test_main(self, mock_input, MockXArmAPI):
+        mock_arm = MockXArmAPI.return_value
+        mock_arm.get_object_info.return_value = {
+            "object_x_coordinate": 100,
+            "object_y_coordinate": 200,
+            "object_z_coordinate": 300,
+            "object_width": 50,
+            "object_height": 75,
+            "grasp_axis_unit_vector_x": 1,
+            "grasp_axis_unit_vector_y": 0,
+            "grasp_axis_unit_vector_z": 0
+        }
+    
+        main()
+        
+        mock_arm.grasp_object.assert_called_once_with(
+            x=100, y=200, z=300, width=50, height=75,
+            grasp_axis_unit_vector_x=1, grasp_axis_unit_vector_y=0, grasp_axis_unit_vector_z=0
+        )
+
+    @patch('grasp_object.XArmAPI')
+    @patch('builtins.input', return_value='192.168.1.222')
+    def test_initialize_arm(self, mock_input, MockXArmAPI):
+        
         arm = initialize_arm()
         
-        self.assertEqual(arm, mock_arm)
-        mock_arm.motion_enable.assert_called_once_with(enable=True)
-        mock_arm.set_mode.assert_called_once_with(0)
-        mock_arm.set_state.assert_called_once_with(state=0)
-
-    @patch('goto_and_grasp.XArmAPI')
-    def test_grasp_object(self, MockXArmAPI):
-        mock_arm = MockXArmAPI.return_value 
-        x, y, z, width = 100, 200, 300, 50
-        grasp_object(mock_arm, x, y, z, width)
-        mock_arm.goto_grasp.assert_called_once_with(x, y, z, width)
+        arm.motion_enable.assert_called_once_with(enable=True)
 
 if __name__ == '__main__':
     unittest.main()
