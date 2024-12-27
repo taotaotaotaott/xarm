@@ -238,7 +238,7 @@ class XArm(Gripper, Servo, Record, RobotIQ, BaseBoard, Track, FtSensor, ModbusTc
             self._only_check_result = ret[3]
             return APIState.HAS_ERROR if ret[3] != 0 else ret[0]
         if only_check_type <= 0 and wait and ret[0] == 0:
-            code = self.wait_move(timeout, trans_id=trans_id)
+            code = self.wait_move(timeout, trans_id=trans_id)  #检测超时
             self.__update_tcp_motion_params(spd, acc, mvt)
             self._sync()
             return code
@@ -410,118 +410,115 @@ class XArm(Gripper, Servo, Record, RobotIQ, BaseBoard, Track, FtSensor, ModbusTc
 
     def ts_tcp_gri(self,x,y,z,pos,width):
         '''
-        此时坐标是TCP中心相对于基座标中心的
-        这个函数将坐标从tcp中心转移到两抓夹终端连线的中点
-        经测量，抓夹完全张开时，移动机械臂，使得抓夹位于基座标的xy平面时（此时z值为零），TCP的z坐标为166.5mm
-        所以要想实现将坐标从tcp中心转移到两抓夹终端连线的中点的功能
-        需要将传入物品的z坐标+166.5
+        此时坐标是TCP中心(黑圆盘的中心点)相对于基座标中心的
+        这个函数将坐标从tcp中心转移到两抓夹终端连线的中点,其中考虑到了抓夹张开的幅度对z坐标的影响
         '''
-        ################# 这里是转换点的坐标  从黑圆盘中心转到tcp中心
-        print('width',width)
         if width is not None:
-
+            #transform the coordinate
             self.set_gripper_position(850,wait=True,speed=8000)
             print("######先将抓夹的张开范围设置到最大了,然后调整z坐标###########")
             print(z)
-            z+=166.5
+            z+=166.5    #此时坐标从黑圆盘中心点转换到了 抓夹张开幅度最大时，抓夹终端两端点连线的中点  166.5经过测量得到的数据，可能会有一点小误差
             z=float(z)
+            
             if width < 85:
+                gri_open = True
                 pos = width*11
                 if pos >= 850:
                     pos = 850
                 print("抓夹张开程度为:pos=",pos)
-            else:
-                print("宽度超出抓夹限制，无法执行此任务")
 
+                #根据物品宽度width，调整pos抓夹张开幅度，并调整因为pos变化而导致的z坐标变化，z_adjustment:调整量
+                self.set_gripper_position(pos=pos, wait=True, speed=8000)   
+                z_adjustment = self.calculate_z_adjustment(pos)    #物品张开幅度缩小对z坐标的影响量
+                print(f"抓夹张开幅度 {pos} 对应的z坐标调整量是 {z_adjustment} mm")
+                if z is not None:
+                    z-=z_adjustment  
+                    z=float(z)
+                    # print(f"经调整后tcp目前xyz的坐标是{x},{y},{z}")
+                    print(f"此时黑圆盘要到达的坐标{x},{y},{z}调整后,抓夹终端与物品顶面可以重合")
+                    #目标点已经设定好了，然后要开始检测路径是否合理
+
+            else:
+                gri_open = False
+                print("the object's width is out of the gripper range,task execution failed")
             
-            self.set_gripper_position(pos=pos, wait=True, speed=8000)  
-            # 调整 z 坐标，根据抓夹目前张开的程度 将工具坐标系原点从黑圆盘中心调整到 抓夹两终端连线的中点
-            z_adjustment = self.calculate_z_adjustment(pos)  #z_adjustment:调整量          pos即 抓夹张开程度 
-            print(f"抓夹张开幅度 {pos} 对应的z坐标调整量是 {z_adjustment} mm")
-            if z is not None:
-                z-=z_adjustment
-                z=float(z)
-                # print(f"经调整后tcp目前xyz的坐标是{x},{y},{z}")
-                print(f"经调整后黑圆盘要到达的坐标{x},{y},{z}")#目标点已经设定好了，然后要开始检测路径是否合理
         else:
-            # 如果没有提供宽度，可以根据其他参数来调整行为
-            print("需要提供抓夹宽度 (width)")  
-        return x,y,z,pos,width,z_adjustment
+            print("please input  width of object")  
+        return x,y,z,pos,z_adjustment,gri_open
         
     
 
-    def grasp_object(self, x=None, y=None, z=None, width=None, height=None,roll=None, pitch=None, yaw=None, radius=None,
-                   speed=None, mvacc=None, mvtime=None, relative=False, is_radian=None, wait=False, timeout=None, **kwargs):
+    def grasp_object(self, object_x_coordinate=None, object_y_coordinate=None, object_z_coordinate=None,object_width=None, object_height=None,roll=None, pitch=None, yaw=None, radius=None,
+                   speed=None,mvtime=None, relative=False, wait=False, timeout=None, **kwargs):
         '''
         假设物品放置于水平平面
         后续还要实现功能为检测物品放置位置是否超出限制,确定运动最大幅度、运动范围，并完善错误处理，提升鲁棒性；
         根据物体的宽相对于基座标系的x轴偏移了多少度 来决定yaw的度数
         '''
-        print("width=",width)
-        pos = width *10
+        print("object_width=",object_width)
+        pos = object_width *10
         print("pos=",pos)
-        ###############调用转换坐标的函数#################
         
-        y,z,pos_a,width,z_adjustment,x = self.ts_tcp_gri(y,z,pos,width,x=object_x_coordinate)
+        x,y,z,pos_a,z_adjustment,gri_open = self.ts_tcp_gri(x=object_x_coordinate,y=object_y_coordinate,z=object_z_coordinate,pos=pos,width=object_width)
         pos = pos_a
         print("pos====",pos)
 
-        ###############调用完，返回更新后的xyz坐标，然后拿去检测路径是否合法#################
-
-
-        ##################检测路径是否合法
-        code = self.test_path_valid(x,y,z,roll,pitch,yaw)
-        ##################检测如果抓夹宽度合法且路径合法，那就，进行移动
-
+        code,is_success,reason = self.test_path_valid(x,y,z,roll,pitch,yaw,gri_open=gri_open)
+        exec_result = {
+            "is_success":is_success,
+            "reason":reason
+        }
         if code == 0:
         # 机械臂移动  ： 机械臂抓夹两终端连线的中点 移动到 物品顶部的中点
-            
-            # self.set_position(x, y, z, roll=180, pitch=0, yaw=0, radius=0, speed=12, wait=wait)
-            # self.set_position(x, y, z, roll=180, pitch=0, yaw=0, radius=0, speed=12, wait=wait)  #这样抓夹终端和物体水平面平行
+            # self.set_position(x, y, z, roll=180, pitch=0, yaw=0, radius=0, speed=12, wait=wait)  #这样抓夹终端和物体顶面 是一个高度
             self.set_position(x, y, z+30, roll=180, pitch=0, yaw=0, radius=0, speed=12, wait=wait)
             z=z-z_adjustment
             self.set_position(x, y, z, roll=180, pitch=0, yaw=0, radius=0, speed=12, wait=wait)
             self.set_gripper_position(pos=pos, wait=True, speed=8000)  
-            self.set_gripper_position(-10,wait=True,speed=8000)
+            self.set_gripper_position(pos=object_width,wait=True,speed=8000)
             self.set_position(50, 0, 30, roll=0, pitch=0, yaw=0, radius=0, speed=12,relative=True, wait=wait)
-            # #后续要加功能：根据物体的宽相对于基座标系的x轴偏移了多少度 来决定yaw的度数
-            
-            # # print('[no wait]set gripper pos,code={}'.format(code))
-
-            # self.set_position(30, 0, 20, roll=0, pitch=0, yaw=0, radius=0, speed=12,relative=True, wait=wait)
-   
-
-
-
-    #后续细化提醒哪个参数出错了
-    def test_path_valid(self,x=None, y=None, z=None, width=None,roll=None, pitch=None, yaw=None, radius=None,
-                               speed=None, mvacc=None, mvtime=None, is_radian=None, wait=False, timeout=None, **kwargs):
-        
-  
-        #开始检测路径是否合理
-        self.set_only_check_type(only_check_type=1)  # 重置检查类型，only_check_type == 1：只检查自碰撞，不移动，以机械臂的实际状态作为初始规划路径，检查路径是否有自碰撞（此时会更新中间状态）
-        code = self.set_position(x,y,z,roll,pitch,yaw,wait=5)  # 移动到传入的点
-        # code = self.set_position(x,y,z,roll,pitch,yaw,_check_tcp_limit=True,check=True,wait=5)  # 移动到传入的点
-        print("***检查路径是否有效***")
-        print(f"要检测的路径为:x={x},y={y},z={z},roll={roll},pitch={pitch},yaw={yaw}")
-
-        print(f"code:{code}")
-        #后续细化提醒哪个参数出错了
-        if code == 0:
-            print("path is valid")
-            self.set_only_check_type(0)  # 重置检查类型
-            
-        elif code == -8:
-            # code: -8        out of range           例如 300,300,300,1900000,30,30 
-            print(" out of range")
-        elif code == -6:
-            # code: -6        cartesian pos limit例如 100000000000,2000000,10000,180,0,0
-            print("cartesian position limit exceeded")
+            #TODO：adjust the tool direction according to grasp_axis_unit_vector_x、grasp_axis_unit_vector_y、grasp_axis_unit_vector_z 
         else:
-            # 处理其他未定义的情况
-            print(f"暂时未完善后续细化，code = {code}")
+            reason_value = exec_result["reason"]
+            print(reason_value)
 
-        return code
+        return exec_result
+        
+        
+
+    #TODO:which args is wrong
+    def test_path_valid(self,x=None, y=None, z=None,roll=None, pitch=None, yaw=None, gri_open=None,radius=None,wait=False, timeout=None, **kwargs):
+        if gri_open == True:
+            self.set_only_check_type(only_check_type=1)  # reset the check type in order to check without move .only_check_type == 1：只检查自碰撞，不移动，以机械臂的实际状态作为初始规划路径，检查路径是否有自碰撞（此时会更新中间状态）
+            code = self.set_position(x,y,z,roll,pitch,yaw,wait=5) 
+            print("***检查路径是否有效***")
+            print(f"要检测的路径为:x={x},y={y},z={z},roll={roll},pitch={pitch},yaw={yaw}")
+            print(f"code:{code}")
+        else :
+            is_success=False
+            reason = "the object's width is out of the gripper range,task execution failed"
+
+        if code == 0:
+            is_success = True
+            reason = 'path is valid'
+            # print("path is valid")
+            self.set_only_check_type(0)  # reset the check type in order to move
+        elif code == -8:
+            is_success=False
+            reason = 'out of range'
+            # code: -8        out of range           for example: 300,300,300,1900000,30,30 
+            # print(" out of range")
+        elif code == -6:
+            is_success=False
+            reason = 'cartesian position limit exceeded'
+            # code: -6        cartesian pos limit   for example: 100000000000,2000000,10000,180,0,0
+            # print("cartesian position limit exceeded")
+        else:
+            is_success=False
+            reason = "accident occur"
+            # print(f"accident occur,code = {code}")
+        return code,is_success,reason
 
         
 

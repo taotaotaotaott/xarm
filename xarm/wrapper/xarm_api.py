@@ -845,15 +845,63 @@ class XArmAPI(object):
 
 
 ################### 
-    def get_object_info(object_name:str)->str|dict:
-    # 输入信息 
+    def get_object_info(self,object_name:str)->str|dict:
+        '''
+            This tool is used to control the robotic arm to grasp the target object based on the x-axis coordinate of the target object's upper surface (object_x_coordinate), 
+        the y-axis coordinate of the target object's upper surface (object_y_coordinate), the z-axis coordinate of the target object's upper surface (object_z_coordinate), 
+        the width of the target object (object_width), the height of the target object (object_height), the x-component of the target object's grasping axis unit vector (grasp_axis_unit_vector_x), 
+        the y-component of the target object's grasping axis unit vector (grasp_axis_unit_vector_y), and the z-component of the target object's grasping axis unit vector (grasp_axis_unit_vector_z). 
+        The coordinate system is in millimeters. It returns whether the grasping of the object is successful and the corresponding execution result dictionary. You can use this tool to control 
+        the robotic arm to grasp objects in the environment. 
+
+        Example:
+        In: grasp_object(
+            object_x_coordinate=1000.0,
+            object_y_coordinate=20.0,
+            object_z_coordinate=3000.0,
+            object_width=100.0,
+            object_height=100.0,
+            grasp_axis_unit_vector_x=0.0,
+            grasp_axis_unit_vector_y=0.0,
+            grasp_axis_unit_vector_z=1.0)
+        Out: {
+            "is_success": True,
+            "reason": "The object has been successfully grasped."
+        }
+        In: grasp_object(
+            object_x_coordinate=200.0,
+            object_y_coordinate=30.0,
+            object_z_coordinate=600.0,
+            object_width=100.0,
+            object_height=100.0,
+            grasp_axis_unit_vector_x=0.0,
+            grasp_axis_unit_vector_y=0.0,
+            grasp_axis_unit_vector_z=1.0)
+        Out: {
+            "is_success": False,
+            "reason": "The object is not at the specified location, and the grasping of the object was unsuccessful."
+        }
+
+        :param float object_x_coordinate: The x-axis coordinate of the target object's upper surface.
+        :param float object_y_coordinate: The y-axis coordinate of the target object's upper surface.
+        :param float object_z_coordinate: The z-axis coordinate of the target object's upper surface.
+        :param float object_width: The width of the target object.
+        :param float object_height: The height of the target object.
+        :param float grasp_axis_unit_vector_x: The x-component of the target object's grasping axis unit vector.
+        :param float grasp_axis_unit_vector_y: The y-component of the target object's grasping axis unit vector.
+        :param float grasp_axis_unit_vector_z: The z-component of the target object's grasping axis unit vector.
+        :return dict: Execution Successful Status Information and Reasons.
+
+        '''
+    
+     
         object_x_coordinate, object_y_coordinate, object_z_coordinate = map(float, input("请输入物品顶部中心坐标x, y, z（用逗号分隔）：").split(","))
         object_width = float(input("请输入物体的宽（单位mm）："))
         object_height = float(input("请输入物体的高（单位mm）:"))
         grasp_axis_unit_vector_x,grasp_axis_unit_vector_y,grasp_axis_unit_vector_z = map(float,input("请输入抓取轴向量的三个分量:").split(","))
 
         object_info_dict = {
-            "cup": {
+            object_name: {
                 "object_x_coordinate": object_x_coordinate,
                 "object_y_coordinate": object_y_coordinate,
                 "object_z_coordinate": object_z_coordinate,
@@ -867,9 +915,7 @@ class XArmAPI(object):
 
         if object_name not in object_info_dict:
             return "Can't obtain the position, orientation, and size information of the object: {}, please check the object_name.".format(object_name)
-
         obj_info = object_info_dict[object_name]
-
         return obj_info
 
 
@@ -879,7 +925,7 @@ class XArmAPI(object):
                     radius=None,speed=None,  relative=False, wait=False, timeout=None, **kwargs):
         
         """
-        使机械臂移动到指定位置并调整抓夹位置。
+        let arm move to the specific position and grasp object
         :param x: cartesian position x, (unit: mm), default is self.last_used_position[0]
         :param y: cartesian position y, (unit: mm), default is self.last_used_position[1]
         :param z: cartesian position z, (unit: mm), default is self.last_used_position[2]
@@ -893,14 +939,11 @@ class XArmAPI(object):
                 ex: code = arm.set_position(..., radius=0)
                 Note: Need to set radius>=0
         :param speed: move speed (mm/s, rad/s), default is self.last_used_tcp_speed
-        :param mvacc: move acceleration (mm/s^2, rad/s^2), default is self.last_used_tcp_acc
-        :param mvtime: 0, reserved
         :param relative: relative move or not
-        :param is_radian: the roll/pitch/yaw in radians or not, default is self.default_is_radian
         :param wait: whether to wait for the arm to complete, default is False
         :param timeout: maximum waiting time(unit: second), default is None(no timeout), only valid if wait is True
         :param kwargs: extra parameters
-        :return: None
+        :return: exec_result
         """
         return self._arm.grasp_object(object_x_coordinate=x, object_y_coordinate=y, object_z_coordinate=z, 
                                       object_width=width, object_height=height,
@@ -909,11 +952,30 @@ class XArmAPI(object):
 
 
     def _set_position_absolute(self, x=None, y=None, z=None, width=None,roll=None, pitch=None, yaw=None, radius=None,
-                               speed=None, mvacc=None, mvtime=None, is_radian=None, wait=False, timeout=None, **kwargs):
-        print("hhhhhhhhhhhhhhhhhhhhh")
+                               speed=None, mvtime=None, wait=False, timeout=None, **kwargs):
+        """
+        :param x: cartesian position x, (unit: mm), default is self.last_used_position[0]
+        :param y: cartesian position y, (unit: mm), default is self.last_used_position[1]
+        :param z: cartesian position z, (unit: mm), default is self.last_used_position[2]
+        :param roll: rotate around the X axis, (unit: rad if is_radian is True else °), default is self.last_used_position[3]
+        :param pitch: rotate around the Y axis, (unit: rad if is_radian is True else °), default is self.last_used_position[4]
+        :param yaw: rotate around the Z axis, (unit: rad if is_radian is True else °), default is self.last_used_position[5]
+        :param radius: move radius, if radius is None or radius less than 0, will MoveLine, else MoveArcLine
+            MoveLine: Linear motion
+                ex: code = arm.set_position(..., radius=None)
+            MoveArcLine: Linear arc motion with interpolation
+                ex: code = arm.set_position(..., radius=0)
+                Note: Need to set radius>=0
+        :param speed: move speed (mm/s, rad/s), default is self.last_used_tcp_speed
+        :param relative: relative move or not
+        :param wait: whether to wait for the arm to complete, default is False
+        :param timeout: maximum waiting time(unit: second), default is None(no timeout), only valid if wait is True
+        :param kwargs: extra parameters
+        :return: ret[0]
+        """
         return self._arm._set_position_absolute(x=x, y=y, z=z,width=width, roll=roll, pitch=pitch, yaw=yaw, radius=radius,
-                               speed=speed, mvacc=mvacc, mvtime=mvtime, is_radian=is_radian, wait=wait, timeout=timeout,**kwargs)
-#####################################
+                               speed=speed, mvtime=mvtime, wait=wait, timeout=timeout,**kwargs)
+
 
 
     def set_position(self, x=None, y=None, z=None, roll=None, pitch=None, yaw=None, radius=None,
@@ -969,7 +1031,7 @@ class XArmAPI(object):
         return self._arm.set_position(x=x, y=y, z=z, roll=roll, pitch=pitch, yaw=yaw, radius=radius,
                                       speed=speed, mvacc=mvacc, mvtime=mvtime, relative=relative,
                                       is_radian=is_radian, wait=wait, timeout=timeout, _check_tcp_limit=_check_tcp_limit,check=check,**kwargs)
-
+#####################################
 
     def set_tool_position(self, x=0, y=0, z=0, roll=0, pitch=0, yaw=0,
                           speed=None, mvacc=None, mvtime=None, is_radian=None,
